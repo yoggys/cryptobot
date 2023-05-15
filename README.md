@@ -1,4 +1,6 @@
-# CryptoBot
+# Crypto Bot
+
+![Crypto](https://cdn.discordapp.com/attachments/727659575196647425/820054574068531200/cryptoend.gif)
 
 ## Requirements
 
