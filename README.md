@@ -1,6 +1,6 @@
 # Crypto Bot
 
-![Crypto](https://cdn.discordapp.com/attachments/727659575196647425/820054574068531200/cryptoend.gif)
+![Crypto](https://cdn.discordapp.com/attachments/704387250351243425/1107713575277039739/crypto_proj_1.png)
 
 ## Requirements
 
