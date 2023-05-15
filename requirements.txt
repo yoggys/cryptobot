@@ -1,0 +1,5 @@
+py-cord==2.4.0
+geopandas==0.12.2
+tortoise-orm==0.19.3
+python-dotenv==1.0.0
+pandas==1.5.3
