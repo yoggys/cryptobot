@@ -14,7 +14,7 @@ from utils.client import CryptoBot
 from utils.models import CryptoHistoryModel, CryptoModel, EconomyModel
 
 
-async def get_available_tags(ctx: discord.AutocompleteContext):
+async def get_available_tags(ctx: discord.AutocompleteContext) -> list[str]:
     return [
         model.tag.upper()
         for model in await CryptoModel.filter()
@@ -112,7 +112,10 @@ class Crypto(commands.Cog):
         user: discord.Option(discord.Member, "The user to check.") = None,
     ):
         user = user or ctx.author
-        if model := await EconomyModel.get_or_none(user_id=user.id):
+        if model := await EconomyModel.get_or_none(
+            user_id=user.id, guild_id=ctx.guild.id
+        ):
+            await model.fetch_balance()
             balance = model.balance
             crypto_balance = model.crypto_balance
 
@@ -148,7 +151,10 @@ class Crypto(commands.Cog):
         if crypto is None:
             return await ctx.respond("❌ Invalid crypto tag.", ephemeral=True)
 
-        user, _ = await EconomyModel.get_or_create(user_id=ctx.author.id)
+        user, _ = await EconomyModel.get_or_create(
+            user_id=ctx.author.id, guild_id=ctx.guild.id
+        )
+        await user.fetch_balance()
 
         if amount * crypto.price > user.balance:
             return await ctx.respond(
@@ -160,6 +166,7 @@ class Crypto(commands.Cog):
             user.crypto_balance.get(tag.upper(), 0) + amount
         )
         await user.save()
+        await user.update_balance()
 
         await ctx.respond(
             "✅ You have bought ` {} ` of ` {} ` for ` {}$ `.".format(
@@ -185,7 +192,10 @@ class Crypto(commands.Cog):
         if crypto is None:
             return await ctx.respond("❌ Invalid crypto tag.", ephemeral=True)
 
-        user, _ = await EconomyModel.get_or_create(user_id=ctx.author.id)
+        user, _ = await EconomyModel.get_or_create(
+            user_id=ctx.author.id, guild_id=ctx.guild.id
+        )
+        await user.fetch_balance()
 
         if amount > user.crypto_balance.get(tag.upper(), 0):
             return await ctx.respond(
@@ -195,6 +205,7 @@ class Crypto(commands.Cog):
         user.balance += amount * crypto.price
         user.crypto_balance[tag.upper()] -= amount
         await user.save()
+        await user.update_balance()
 
         await ctx.respond(
             "✅ You have sold ` {} ` of ` {} ` for ` {}$ `.".format(

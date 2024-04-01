@@ -1,7 +1,11 @@
 from os import getenv
+from typing import Optional
 
+import unbelievaboat
 from tortoise import fields
 from tortoise.models import Model
+
+client = unbelievaboat.Client(getenv("UNBELIEVABOAT_API_TOKEN"))
 
 
 class BaseModel(Model):
@@ -36,5 +40,15 @@ class EconomyModel(BaseModel):
         indexes = ["id", "user_id"]
 
     user_id = fields.IntField()
-    balance = fields.IntField(default=float(getenv("STARTING_BALANCE")))
+    guild_id = fields.IntField()
     crypto_balance = fields.JSONField(default={})
+    balance: Optional[int] = None
+
+    async def fetch_balance(self) -> None:
+        balance = await client.get_user_balance(self.guild_id, self.user_id)
+        self.balance = balance.cash
+
+    async def update_balance(self) -> None:
+        await client.update_user_balance(
+            self.guild_id, self.user_id, {"cash": self.balance}
+        )

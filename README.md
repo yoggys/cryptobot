@@ -19,7 +19,7 @@ pip install -r requirements.txt
 
 ```
 TOKEN - discord bot token [str]
-STARTING_BALANCE - starting balance for users [int number]
+UNBELIEVABOAT_API_TOKEN - unbelievaboat API token [str]
 CRYPTO_RANDOM_INTERVAL - interval between crypto price updates [float seconds]
 ```
 
