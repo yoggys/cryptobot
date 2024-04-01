@@ -1,5 +1,6 @@
 import datetime
-from os import getenv, remove
+from io import BytesIO
+from os import getenv
 from random import randint
 
 import discord
@@ -13,15 +14,17 @@ from utils.client import CryptoBot
 from utils.models import CryptoHistoryModel, CryptoModel, EconomyModel
 
 
+async def get_available_tags(ctx: discord.AutocompleteContext):
+    return [
+        model.tag.upper()
+        for model in await CryptoModel.filter()
+        if ctx.options.get("tag").lower() in model.tag.lower()
+    ]
+
+
 class Crypto(commands.Cog):
     def __init__(self, client):
         self.client: CryptoBot = client
-
-        # block users from using the sell/buy if they are currently in a transaction
-        self.users_in_transaction: list[int] = []
-
-    # slash command group for commands
-    crypto = SlashCommandGroup("crypto", checks=[commands.guild_only()])
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -43,7 +46,7 @@ class Crypto(commands.Cog):
     async def before_schedule_tasks(self):
         await self.client.wait_until_ready()
 
-    @crypto.command(name="info", description="Check bot info.")
+    @commands.slash_command(name="info", description="Check bot info.")
     async def info(
         self,
         ctx: discord.ApplicationContext,
@@ -54,35 +57,103 @@ class Crypto(commands.Cog):
         )
         await ctx.respond(embed=embed)
 
+    admin = SlashCommandGroup(
+        "admin",
+        checks=[commands.guild_only()],
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    @admin.command(name="create", description="Create a new crypto.")
+    async def create(
+        self,
+        ctx: discord.ApplicationContext,
+        tag: discord.Option(
+            str, description="Tag of the crypto (max 3 chars).", max_length=3
+        ),
+        name: discord.Option(
+            str, description="Name of the crypto (max 32 chars).", max_length=32
+        ),
+        price: discord.Option(int, description="Starting price of the crypto."),
+        changes: discord.Option(int, description="Change rate of the crypto."),
+    ):
+        if await CryptoModel.get_or_none(tag=tag.upper()):
+            return await ctx.respond(
+                f"❌ Crypto with tag ` {tag.upper()} ` already exists.", ephemeral=True
+            )
+        await CryptoModel.create(
+            tag=tag.upper(), price=price, name=name, changes=changes
+        )
+        await ctx.respond(
+            f"✅ Crypto with tag `{tag.upper()}` created successfully with price {price}."
+        )
+
+    @admin.command(name="remove", description="Remove a crypto.")
+    async def remove(
+        self,
+        ctx: discord.ApplicationContext,
+        tag: discord.Option(str, description="Name of the crypto."),
+    ):
+        if model := await CryptoModel.get_or_none(tag=tag.upper()):
+            await model.delete()
+            await ctx.respond(
+                f"✅ Crypto with tag `{tag.upper()}` deleted successfully."
+            )
+        else:
+            await ctx.respond(
+                f"❌ Crypto with tag ` {tag.upper()} ` does not exists.", ephemeral=True
+            )
+
+    crypto = SlashCommandGroup("crypto", checks=[commands.guild_only()])
+
+    @crypto.command(name="balance", description="Check someone balance.")
+    async def balance(
+        self,
+        ctx: discord.ApplicationContext,
+        user: discord.Option(discord.Member, "The user to check.") = None,
+    ):
+        user = user or ctx.author
+        if model := await EconomyModel.get_or_none(user_id=user.id):
+            balance = model.balance
+            crypto_balance = model.crypto_balance
+
+            embed = discord.Embed(
+                color=0x66C4D8, description=f"> Balance: ` {balance}$ `"
+            )
+            embed.set_author(name=user.name, icon_url=user.display_avatar)
+
+            for name, value in crypto_balance.items():
+                embed.add_field(name=name, value=f"` {value} `")
+
+            await ctx.respond(embed=embed)
+        else:
+            await ctx.respond(
+                f"❌ {user.mention} do not have any balance yet.", ephemeral=True
+            )
+
     @crypto.command(name="buy", description="Buy crypto.")
     async def buy(
         self,
         ctx: discord.ApplicationContext,
-        tag: discord.Option(str, description="The crypto tag."),
+        tag: discord.Option(
+            str, description="The crypto tag.", autocomplete=get_available_tags
+        ),
         amount: discord.Option(int, description="The amount of crypto to buy."),
     ):
-        if ctx.author.id in self.users_in_transaction:
-            return await ctx.respond(
-                "You are currently in a transaction, please wait.", ephemeral=True
-            )
-
         if amount < 1:
-            return await ctx.respond("You must buy at least 1 crypto.", ephemeral=True)
+            return await ctx.respond(
+                "❌ You must buy at least 1 crypto.", ephemeral=True
+            )
 
         crypto = await CryptoModel.get_or_none(tag=tag.upper())
         if crypto is None:
-            return await ctx.respond("Invalid crypto tag.", ephemeral=True)
+            return await ctx.respond("❌ Invalid crypto tag.", ephemeral=True)
 
-        user = await EconomyModel.get_or_none(user_id=ctx.author.id)
-        if user is None:
-            user = await EconomyModel.create(user_id=ctx.author.id)
+        user, _ = await EconomyModel.get_or_create(user_id=ctx.author.id)
 
         if amount * crypto.price > user.balance:
             return await ctx.respond(
-                "You do not have enough money to buy this crypto.", ephemeral=True
+                "❌ You do not have enough money to buy this crypto.", ephemeral=True
             )
-
-        self.users_in_transaction.append(ctx.author.id)
 
         user.balance -= amount * crypto.price
         user.crypto_balance[tag.upper()] = (
@@ -90,10 +161,8 @@ class Crypto(commands.Cog):
         )
         await user.save()
 
-        self.users_in_transaction.remove(ctx.author.id)
-
         await ctx.respond(
-            "You have bought `{}` of `{}` for `{}$`.".format(
+            "✅ You have bought ` {} ` of ` {} ` for ` {}$ `.".format(
                 amount, crypto.tag, amount * crypto.price
             )
         )
@@ -102,51 +171,46 @@ class Crypto(commands.Cog):
     async def sell(
         self,
         ctx: discord.ApplicationContext,
-        tag: discord.Option(str, description="The crypto tag."),
+        tag: discord.Option(
+            str, description="The crypto tag.", autocomplete=get_available_tags
+        ),
         amount: discord.Option(int, description="The amount of crypto to sell."),
     ):
-        if ctx.author.id in self.users_in_transaction:
-            return await ctx.respond(
-                "You are currently in a transaction, please wait.", ephemeral=True
-            )
-
         if amount < 1:
-            return await ctx.respond("You must sell at least 1 crypto.", ephemeral=True)
+            return await ctx.respond(
+                "❌ You must sell at least 1 crypto.", ephemeral=True
+            )
 
         crypto = await CryptoModel.get_or_none(tag=tag.upper())
         if crypto is None:
-            return await ctx.respond("Invalid crypto tag.", ephemeral=True)
+            return await ctx.respond("❌ Invalid crypto tag.", ephemeral=True)
 
-        user = await EconomyModel.get_or_none(user_id=ctx.author.id)
-        if user is None:
-            user = await EconomyModel.create(user_id=ctx.author.id)
+        user, _ = await EconomyModel.get_or_create(user_id=ctx.author.id)
 
         if amount > user.crypto_balance.get(tag.upper(), 0):
             return await ctx.respond(
-                f"You do not have enough `{tag.upper()}` to sell.", ephemeral=True
+                f"❌ You do not have enough `{tag.upper()}` to sell.", ephemeral=True
             )
-
-        self.users_in_transaction.append(ctx.author.id)
 
         user.balance += amount * crypto.price
         user.crypto_balance[tag.upper()] -= amount
         await user.save()
 
-        self.users_in_transaction.remove(ctx.author.id)
-
         await ctx.respond(
-            "You have sold `{}` of `{}` for `{}$`.".format(
+            "✅ You have sold ` {} ` of ` {} ` for ` {}$ `.".format(
                 amount, crypto.tag, amount * crypto.price
             )
         )
 
     @crypto.command(
-        name="graph", description="Grapf of crypto in given period of time."
+        name="graph", description="Graph of crypto in given period of time."
     )
     async def graph(
         self,
         ctx: discord.ApplicationContext,
-        tag: discord.Option(str, description="The crypto tag."),
+        tag: discord.Option(
+            str, description="The crypto tag.", autocomplete=get_available_tags
+        ),
         period: discord.Option(
             str,
             description="The period to check the price for.",
@@ -155,7 +219,7 @@ class Crypto(commands.Cog):
     ):
         crypto = await CryptoModel.get_or_none(tag=tag.upper())
         if crypto is None:
-            return await ctx.respond("Invalid crypto tag.", ephemeral=True)
+            return await ctx.respond("❌ Invalid crypto tag.", ephemeral=True)
         await ctx.defer()
 
         prices = (
@@ -197,8 +261,8 @@ class Crypto(commands.Cog):
             index=[price.created_at for price in prices],
         )
 
-        minimal_value = int(df[[crypto.tag]].min()) - 1
-        maximal_value = int(df[[crypto.tag]].max()) + 1
+        minimal_value = int(df.min().iloc[0]) - 1
+        maximal_value = int(df.max().iloc[0]) + 1
 
         df.plot(
             color=colors,
@@ -227,15 +291,12 @@ class Crypto(commands.Cog):
             maximal_value + (maximal_value - minimal_value) * 0.1,
         )
 
-        filename = f"crypto_{ctx.author.id}.png"
-        plt.savefig(filename)
+        graph = BytesIO()
+        plt.savefig(graph, format="png")
         plt.clf()
         plt.close()
-
-        file = discord.File(filename, filename=filename)
-        await ctx.respond(file=file)
-        file.close()
-        remove(filename)
+        graph.seek(0)
+        await ctx.respond(file=discord.File(graph, filename="graph.png"))
 
 
 def setup(client):

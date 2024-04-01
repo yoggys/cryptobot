@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from tortoise import Tortoise
 
 
 class CryptoBot(commands.Bot):
@@ -11,13 +10,6 @@ class CryptoBot(commands.Bot):
 
         self.remove_command("help")
         self.load_extension("cogs.Crypto")
-
-    async def on_connect(self):
-        await Tortoise.init(
-            db_url="sqlite://main.db", modules={"models": ["utils.models"]}
-        )
-        await Tortoise.generate_schemas()
-        return await super().on_connect()
 
     async def on_ready(self):
         print("Running as {} (ID: {})".format(self.user, self.user.id))

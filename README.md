@@ -18,7 +18,7 @@ pip install -r requirements.txt
 ## Enviroment variables
 
 ```
-TOKEN - discord bot token
+TOKEN - discord bot token [str]
 STARTING_BALANCE - starting balance for users [int number]
 CRYPTO_RANDOM_INTERVAL - interval between crypto price updates [float seconds]
 ```
