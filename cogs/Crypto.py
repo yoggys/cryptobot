@@ -14,7 +14,7 @@ from utils.client import CryptoBot
 from utils.models import CryptoHistoryModel, CryptoModel, EconomyModel
 
 
-async def get_available_tags(ctx: discord.AutocompleteContext):
+async def get_available_tags(ctx: discord.AutocompleteContext) -> list[str]:
     return [
         model.tag.upper()
         for model in await CryptoModel.filter()
