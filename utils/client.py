@@ -4,9 +4,8 @@ from discord.ext import commands
 
 class CryptoBot(commands.Bot):
     def __init__(self):
-        command_prefix = "."
         intents = discord.Intents.none()
-        super().__init__(command_prefix=command_prefix, intents=intents)
+        super().__init__(intents=intents)
 
         self.remove_command("help")
         self.load_extension("cogs.Crypto")
