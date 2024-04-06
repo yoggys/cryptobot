@@ -5,7 +5,12 @@ import unbelievaboat
 from tortoise import fields
 from tortoise.models import Model
 
+
 client = unbelievaboat.Client(getenv("UNBELIEVABOAT_API_TOKEN"))
+
+
+class MissingBalance(Exception):
+    pass
 
 
 class BaseModel(Model):
@@ -46,9 +51,13 @@ class EconomyModel(BaseModel):
 
     async def fetch_balance(self) -> None:
         balance = await client.get_user_balance(self.guild_id, self.user_id)
-        self.balance = balance.cash
+        self.balance = balance.cash or 0
 
-    async def update_balance(self) -> None:
-        await client.update_user_balance(
-            self.guild_id, self.user_id, {"cash": self.balance}
+    async def update_balance(self, reason: Optional[str] = None) -> None:
+        if self.balance is None:
+            raise MissingBalance(
+                "You have to use EconomyModel.fetch_balance() before committing changes."
+            )
+        await client.set_user_balance(
+            self.guild_id, self.user_id, {"cash": self.balance}, reason
         )

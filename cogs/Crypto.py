@@ -120,7 +120,7 @@ class Crypto(commands.Cog):
             crypto_balance = model.crypto_balance
 
             embed = discord.Embed(
-                color=0x66C4D8, description=f"> Balance: ` {balance}$ `"
+                color=0x66C4D8, description=f"> Balance (cash): ` {balance}$ `"
             )
             embed.set_author(name=user.name, icon_url=user.display_avatar)
 
@@ -158,7 +158,7 @@ class Crypto(commands.Cog):
 
         if amount * crypto.price > user.balance:
             return await ctx.respond(
-                "❌ You do not have enough money to buy this crypto.", ephemeral=True
+                "❌ You do not have enough cash to buy this crypto.", ephemeral=True
             )
 
         user.balance -= amount * crypto.price
