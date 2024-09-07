@@ -1,8 +1,7 @@
 import discord
-from discord.ext import commands
 
 
-class CryptoBot(commands.Bot):
+class CryptoBot(discord.Bot):
     def __init__(self):
         intents = discord.Intents.none()
         super().__init__(intents=intents)
@@ -12,8 +11,3 @@ class CryptoBot(commands.Bot):
 
     async def on_ready(self):
         print("Running as {} (ID: {})".format(self.user, self.user.id))
-
-    async def on_command_error(
-        self, ctx: commands.Context, exception: commands.errors.CommandError
-    ) -> None:
-        return  # we do not want to do anything here as we do not use message commands
