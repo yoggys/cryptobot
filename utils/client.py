@@ -6,7 +6,6 @@ class CryptoBot(discord.Bot):
         intents = discord.Intents.none()
         super().__init__(intents=intents)
 
-        self.remove_command("help")
         self.load_extension("cogs.Crypto")
 
     async def on_ready(self):
