@@ -1,7 +1,7 @@
 # Crypto Bot
 
-![Crypto](https://cdn.discordapp.com/attachments/704387250351243425/1107713575277039739/crypto_proj_1.png)
-![image](https://github.com/yoggys/cryptobot/assets/61660055/4c66fb2c-45fe-4a70-8d18-9f2df97f5933)
+![cover](https://github.com/user-attachments/assets/4fc9e6e4-cc1d-4f0b-81f0-7d1b97f0ab87)
+![preview](https://github.com/user-attachments/assets/5d4c84a8-ae53-4a54-8679-8719879adf33)
 
 ## Requirements
 
