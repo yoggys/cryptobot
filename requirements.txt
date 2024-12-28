@@ -1,5 +1,5 @@
-py-cord~=2.5.0
-tortoise-orm~=0.19.3
-python-dotenv~=1.0.0
-matplotlib~=3.8.3
-pandas~=2.2.1
+py-cord~=2.6.1
+tortoise-orm~=0.23.0
+python-dotenv~=1.0.1
+matplotlib~=3.10.0
+pandas~=2.2.3
